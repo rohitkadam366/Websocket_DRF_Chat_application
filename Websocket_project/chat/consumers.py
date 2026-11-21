@@ -5,7 +5,7 @@ from channels.db import database_sync_to_async
 
 from .models import ChatRoom, Message
 
-
+# https://chatgpt.com/c/6afebafd-5664-83ec-b45a-a91095049ca3
 class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     async def connect(self):
@@ -44,31 +44,80 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             self.channel_name
         )
 
+    
+
+    # async def receive_json(self, content):
+
+    #     message = content.get("message")
+
+    #     if not message or not message.strip():
+    #         return
+
+    #     user = self.scope["user"]
+
+    #     # Save message in database
+    #     saved_message = await self.save_message(
+    #         user.id,
+    #         message.strip()
+    #     )
+
+    #     # Broadcast message to all room members
+    #     await self.channel_layer.group_send(
+    #         self.room_group_name,
+    #         {
+    #             "type": "chat_message",
+    #             "message": saved_message["content"],
+    #             "username": saved_message["username"],
+    #             "created_at": saved_message["created_at"],
+    #         }
+    #     )
+
     async def receive_json(self, content):
 
-        message = content.get("message")
+        event_type = content.get("type")
 
-        if not message or not message.strip():
+        if event_type == "typing":
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "user_typing",
+                    "username": self.scope["user"].username,
+                    "is_typing": content.get("is_typing", True),
+                    "sender_channel": self.channel_name,
+                }
+            )
+
             return
 
-        user = self.scope["user"]
+        if event_type == "chat_message":
+            message = content.get("message", "").strip()
 
-        # Save message in database
-        saved_message = await self.save_message(
-            user.id,
-            message.strip()
-        )
+            if not message:
+                return
 
-        # Broadcast message to all room members
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "chat_message",
-                "message": saved_message["content"],
-                "username": saved_message["username"],
-                "created_at": saved_message["created_at"],
-            }
-        )
+            saved_message = await self.save_message(
+                self.scope["user"].id,
+                message
+            )
+
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "chat_message",
+                    "message": saved_message["content"],
+                    "username": saved_message["username"],
+                    "created_at": saved_message["created_at"],
+                }
+            )
+
+    async def user_typing(self, event):
+        if event["sender_channel"] == self.channel_name:
+            return
+        await self.send_json({
+            "type": "typing",
+            "username": event["username"],
+            "is_typing": event["is_typing"],
+        })
 
     async def chat_message(self, event):
 
@@ -80,11 +129,19 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             "created_at": event["created_at"],
         })
 
+    # @database_sync_to_async
+    # def check_room(self):
+
+    #     return ChatRoom.objects.filter(
+    #         id=self.room_id
+    #     ).exists()
+
     @database_sync_to_async
     def check_room(self):
 
         return ChatRoom.objects.filter(
-            id=self.room_id
+            id=self.room_id,
+            members=self.scope["user"]
         ).exists()
 
     @database_sync_to_async
