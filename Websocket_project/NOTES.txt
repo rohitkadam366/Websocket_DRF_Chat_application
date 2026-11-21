@@ -1,4 +1,14 @@
-https://chatgpt.com/c/6afdfc11-cba4-83ee-8e45-bab2afc37a9a
+Main- https://chatgpt.com/c/6afdfc11-cba4-83ee-8e45-bab2afc37a9a
+
+Linux NOtes --> https://chatgpt.com/c/6b009c34-49b0-83ee-9d85-43850053ab2c
+
+
+runbackend = daphne -p 8000 config.asgi:application
+
+
+
+
+
 
 2. Django Channels मध्ये Consumer म्हणजे काय? (सविस्तर मराठीत)
 तुम्ही Python Backend Developer आहात, त्यामुळे आपण हे Django DRF च्या उदाहरणातून समजून घेऊ.
